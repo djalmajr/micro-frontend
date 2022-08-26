@@ -1,0 +1,14 @@
+{
+  "include": ["@types", "src"],
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "lib": ["DOM", "ESNext"],
+    "experimentalDecorators": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "outDir": "lib",
+    "skipLibCheck": true,
+    "target": "ES2020"
+  }
+}

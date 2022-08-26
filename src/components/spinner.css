@@ -1,0 +1,78 @@
+:host([size="tiny"]) {
+  --border-width: 2px;
+  --size: 0.75rem;
+}
+
+:host([size="mini"]) {
+  --border-width: 2px;
+  --size: 0.85rem;
+}
+
+:host([size="small"]) {
+  --border-width: 2px;
+  --size: 1rem;
+}
+
+:host,
+:host([size="medium"]) {
+  --border-width: 3px;
+  --size: 1.25rem;
+}
+
+:host([size="large"]) {
+  --border-width: 3px;
+  --size: 1.75rem;
+}
+
+:host([size="big"]) {
+  --border-width: 4px;
+  --size: 2.5rem;
+}
+
+:host {
+  display: inline-block;
+}
+
+:host([hidden]) {
+  display: none;
+}
+
+:host .spinner {
+  position: relative;
+}
+
+:host .spinner,
+:host .spinner:after,
+:host .spinner:before {
+  border-radius: 50%;
+  width: var(--size);
+  height: var(--size);
+}
+
+:host .spinner:after,
+:host .spinner:before {
+  box-sizing: border-box;
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: calc(var(--size) / -2);
+  margin-left: calc(var(--size) / -2);
+}
+
+:host .spinner:after {
+  animation: spinner 0.6s linear infinite;
+  border: var(--border-width) solid transparent;
+  border-top-color: var(--color);
+}
+
+:host .spinner:before {
+  border: var(--border-width) solid var(--color);
+  opacity: 0.1;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
