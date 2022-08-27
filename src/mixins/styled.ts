@@ -1,10 +1,10 @@
 import { Intent, Size } from "../constants.js";
 
+type Aliases = Obj<string[] | ((value: string | null, attrs: string[]) => string)>;
+
 const { from, isArray } = Array;
 
 const { assign, keys, values } = Object;
-
-// const uniq = (arr: unknown[]) => [...new Set(arr)];
 
 const colors = {
   bg: ["background"],
@@ -68,9 +68,7 @@ const pseudos: Obj<string> = {
 
 const options = { attributes: true, attributeOldValue: true };
 
-const aliases = assign({}, colors, flex, layout, position, spaces) as Obj<
-  string[] | ((value: string | null, attrs: string[]) => string)
->;
+const aliases = assign({}, colors, flex, layout, position, spaces) as Aliases;
 
 const split = (attr: string) => {
   return attr.split(/-(active|focus|hover|first|last)$/).filter(Boolean);
@@ -103,7 +101,7 @@ export function StyledMixin<T extends Constructor<HTMLElement>>(
   return class Styled extends Base {
     #observer = new MutationObserver(() => this.#update());
 
-    #sheet = sheet;
+    #sheet = [].concat((<any>this).constructor.styles)[0] || sheet;
 
     get as(): string {
       return this.getAttribute("as");
