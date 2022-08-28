@@ -1,29 +1,5 @@
 .app {
-  --size: 3rem;
-}
-
-.app {
-  background: #ccc;
-  border: 1px solid green;
-  padding: 1rem;
-}
-
-.app button,
-.app span {
-  font-size: 150%;
-}
-
-span {
-  width: var(--size);
-  display: inline-block;
-  text-align: center;
-}
-
-button {
-  width: var(--size);
-  height: var(--size);
-  border: none;
-  border-radius: 10px;
-  background-color: seagreen;
-  color: white;
+  background: var(--m-color-purple-50);
+  border: 1px solid var(--m-color-purple-300);
+  padding: var(--m-spacing-medium);
 }

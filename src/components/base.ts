@@ -1,9 +1,8 @@
-import { html, render } from "uhtml";
+import { html, render, type Renderable } from "uhtml";
 import { camelCase } from "../utils/camelCase.js";
 import { handler } from "../utils/createStore.js";
 import { kebabCase } from "../utils/kebabCase.js";
 import { parseJSON } from "../utils/parseJSON.js";
-import { typeOf } from "../utils/typeOf.js";
 import { useSheet } from "../utils/useSheet.js";
 
 const parse = {
@@ -25,11 +24,14 @@ const options = {
 export { html, render };
 
 export class BaseElement extends HTMLElement {
+  static shadowDOM = false;
+
   #mounted = false;
   #nextTickId?: number;
+  #unsubscribe?: () => void;
 
-  #observer = new MutationObserver((m) => {
-    console.log(m);
+  #observer = new MutationObserver((arr) => {
+    this.#update(arr.reduce((r, m) => r.concat(...(<Obj>m).addedNodes), []));
   });
 
   props = {};
@@ -38,8 +40,11 @@ export class BaseElement extends HTMLElement {
 
   constructor() {
     super();
-    const { styles } = <Obj>this.constructor;
-    styles && useSheet(styles, document);
+
+    const { shadowDOM, styles } = <Obj>this.constructor;
+
+    shadowDOM && this.attachShadow({ mode: "open" });
+    styles && (this.#unsubscribe = useSheet(styles, this.$el));
   }
 
   connectedCallback() {
@@ -56,13 +61,11 @@ export class BaseElement extends HTMLElement {
         get: () => this.props[key],
         set: (value) => {
           const name = kebabCase(key);
-          const prop = parse.attr(this.getAttribute(name));
-          const { observedAttributes } = <any>this.constructor;
+          const prop = parse.attr(this.attr(name));
+          const { observedAttributes } = <Obj>this.constructor;
 
           if (observedAttributes?.includes(name) && value !== prop) {
-            ["null", "undefined"].includes(typeOf(value))
-              ? this.removeAttribute(name)
-              : this.setAttribute(name, parse.prop(value));
+            this.attr(name, parse.prop(value));
           }
 
           this.props[key] = value;
@@ -71,13 +74,13 @@ export class BaseElement extends HTMLElement {
     }
 
     this.#observer.observe(this, options);
-    this.#update();
-    this.#render();
+    this.#update(Array.from(this.childNodes));
   }
 
   disconnectedCallback() {
     super.disconnectedCallback?.();
     this.#observer.disconnect();
+    this.#unsubscribe?.();
   }
 
   attributeChangedCallback(key: string, old: string | null, val: string | null) {
@@ -93,32 +96,86 @@ export class BaseElement extends HTMLElement {
     if (this.hasOwnProperty(prop)) {
       this[prop] = parse.attr(val);
     }
-
-    this.#render();
   }
 
-  render() {
-    return html``;
+  // DOM
+
+  get $el() {
+    return this.shadowRoot || this;
+  }
+
+  $: HTMLElement["querySelector"] = (selector) => {
+    return this.$el.querySelector(selector);
+  };
+
+  $$: HTMLElement["querySelector"] = (selector) => {
+    return this.$el.querySelectorAll(selector);
+  };
+
+  attr(name: string, value?: string | null) {
+    if (value == null) {
+      this.removeAttribute(name);
+    } else {
+      this.setAttribute(name, value);
+    }
+
+    return this.getAttribute(name);
+  }
+
+  has(name: string) {
+    return this.hasAttribute(name);
+  }
+
+  // Events
+
+  emit(name: string, detail: unknown) {
+    const options = { bubbles: true, composed: true, detail };
+
+    return this.dispatchEvent(new CustomEvent(name, options));
+  }
+
+  on: HTMLElement["addEventListener"] = (name, listener, options) => {
+    this.addEventListener(name, listener, options);
+  };
+
+  off: HTMLElement["addEventListener"] = (name, listener, options) => {
+    this.removeEventListener(name, listener, options);
+  };
+
+  // Renderer
+
+  render(): Renderable {
+    return null;
   }
 
   #render = () => {
-    if (!this.isConnected) return;
+    if (!this.isConnected || !this.render?.()) return;
 
     if (this.#nextTickId) {
       window.cancelAnimationFrame(this.#nextTickId);
     }
 
     this.#nextTickId = window.requestAnimationFrame(() => {
-      render(this, this.render());
+      render(this, html.node`${this.render()}`);
     });
   };
 
-  #update() {
-    Array.from(this.childNodes).forEach((node: HTMLElement) => {
-      const name = node.getAttribute?.("slot") || "default";
+  #update(nodes: Node[]) {
+    if (nodes.length) {
+      for (const name in this.slots) {
+        for (const node of this.slots[name]) {
+          if (this.contains(node)) return;
+        }
+      }
 
-      this.slots[name] ||= [];
-      this.slots[name].push(node);
-    });
+      this.slots = nodes.reduce((res, node: HTMLElement) => {
+        const name = node.getAttribute?.("slot") || "default";
+        res[name] ||= [];
+        res[name].push(node);
+        return res;
+      }, {});
+
+      this.#render();
+    }
   }
 }

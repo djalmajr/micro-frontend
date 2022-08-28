@@ -1,4 +1,6 @@
 import { Intent, Size } from "../constants.js";
+import { uniq } from "../utils/uniq.js";
+import { useSheet } from "../utils/useSheet.js";
 
 type Aliases = Obj<string[] | ((value: string | null, attrs: string[]) => string)>;
 
@@ -92,23 +94,12 @@ export interface StyledMixinInterface {
   supports(val: string): boolean;
 }
 
-export function StyledMixin<T extends Constructor<HTMLElement>>(
+export function Styled<T extends Constructor<HTMLElement>>(
   Base: T,
-  config?: { ghost?: boolean },
 ): Constructor<StyledMixinInterface> & T {
-  const { ghost = true } = config || {};
-
   return class Styled extends Base {
-    #observer = new MutationObserver(() => this.#update());
-
-    #sheet = [].concat((<any>this).constructor.styles)[0] || sheet;
-
-    get as(): string {
-      return this.getAttribute("as");
-    }
-
-    get attrs() {
-      return [
+    static get observedAttributes() {
+      const attrs = [
         "as",
         "class",
         "center",
@@ -121,11 +112,27 @@ export function StyledMixin<T extends Constructor<HTMLElement>>(
         "style",
         "wrap",
       ];
+
+      return uniq(attrs.concat((<Obj>this.constructor).observedAttributes || []));
+    }
+
+    #observer = new MutationObserver(() => this.#update());
+
+    #sheet = [].concat((<Obj>this.constructor).styles)[0] || sheet;
+
+    get as(): string {
+      return this.getAttribute("as");
+    }
+
+    get attrs() {
+      return (<Obj>this.constructor).observedAttributes || [];
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(...args: any[]) {
       super(...args);
+      const { styles } = <Obj>this.constructor;
+      styles && useSheet(styles, document);
       this.addEventListener("updatesheet", () => this.#update());
     }
 
@@ -139,6 +146,10 @@ export function StyledMixin<T extends Constructor<HTMLElement>>(
     disconnectedCallback() {
       super.disconnectedCallback?.();
       this.#observer.disconnect();
+    }
+
+    attributeChangedCallback(key: string, old: string | null, val: string | null): void {
+      super.attributeChangedCallback?.(key, old, val);
     }
 
     supports(attr: string) {
@@ -161,36 +172,34 @@ export function StyledMixin<T extends Constructor<HTMLElement>>(
       const sheets = (<Obj>target).adoptedStyleSheets || [];
       const tag = this.tagName.toLowerCase();
       const prefix = tag.split("-")[0];
-      const suffix = ghost ? "> :first-child" : "";
-      const display = ghost ? "flow-root" : "flex";
 
       const spaces = (size: string) => /* css */ `
-        ${tag}[space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) ${suffix} > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) > :first-child > *:not([hidden]):not(:first-child) {
           margin-left: calc(var(--${prefix}-spacing-${size}) * calc(1 - 0));
           margin-right: calc(var(--${prefix}-spacing-${size}) * 0);
         }
-        ${tag}[space=${size}][reverse]:not([column]) ${suffix} > *:not([hidden]):not(:first-child),
-        ${tag}[space=${size}][flex-dir='horizontal-reverse'] ${suffix} > *:not([hidden]):not(:first-child),
-        ${tag}[space=${size}][flex-direction='horizontal-reverse'] ${suffix} > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][reverse]:not([column]) > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][flex-dir='horizontal-reverse'] > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][flex-direction='horizontal-reverse'] > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][reverse]:not([column]) > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-dir='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-direction='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child) {
           margin-left: calc(var(--${prefix}-spacing-${size}) * calc(1 - 1));
           margin-right: calc(var(--${prefix}-spacing-${size}) * 1);
         }
-        ${tag}[space=${size}][column]:not([reverse]) ${suffix} > *:not([hidden]):not(:first-child),
-        ${tag}[space=${size}][flex-dir='column'] ${suffix} > *:not([hidden]):not(:first-child),
-        ${tag}[space=${size}][flex-direction='column'] ${suffix} > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][column]:not([reverse]) > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][flex-dir='column'] > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][flex-direction='column'] > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][column]:not([reverse]) > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-dir='column'] > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-direction='column'] > :first-child > *:not([hidden]):not(:first-child) {
           margin-top: calc(var(--${prefix}-spacing-${size}) * calc(1 - 0));
           margin-bottom: calc(var(--${prefix}-spacing-${size}) * 0);
         }
-        ${tag}[space=${size}][column][reverse] ${suffix} > *:not([hidden]):not(:first-child),
-        ${tag}[space=${size}][flex-dir='column-reverse'] ${suffix} > *:not([hidden]):not(:first-child),
-        ${tag}[space=${size}][flex-direction='column-reverse'] ${suffix} > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][column][reverse] > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][flex-dir='column-reverse'] > *:not([hidden]):not(:first-child),
+        ${tag}[space=${size}][flex-direction='column-reverse'] > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][column][reverse] > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-dir='column-reverse'] > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-direction='column-reverse'] > :first-child > *:not([hidden]):not(:first-child) {
@@ -200,17 +209,17 @@ export function StyledMixin<T extends Constructor<HTMLElement>>(
       `;
 
       const common = /* css */ `
-        ${tag} { display: ${display}; }
-        ${tag} ${suffix} { display: flex; }
+        ${tag} { display: flex; }
+        ${tag}[as] { display: flow-root; }
         ${tag}[as] > :first-child { display: flex; }
         ${tag}[hidden] { display: none; }
-        ${tag}[column]:not([reverse]) ${suffix}, ${tag}[as][column]:not([reverse]) > :first-child { flex-direction: column; }
-        ${tag}[column][reverse] ${suffix}, ${tag}[as][column][reverse] > :first-child { flex-direction: column-reverse; }
-        ${tag}[reverse]:not([column]) ${suffix}, ${tag}[as][reverse]:not([column]) > :first-child { flex-direction: row-reverse; }
-        ${tag}[reverse][wrap] ${suffix}, ${tag}[as][reverse][wrap] > :first-child { flex-wrap: wrap-reverse; }
-        ${tag}[center] ${suffix}, ${tag}[as][center] > :first-child { align-items: center; justify-content: center }
-        ${tag}[nowrap] ${suffix}, ${tag}[as][nowrap] > :first-child { flex-wrap: nowrap; }
-        ${tag}[wrap] ${suffix}, ${tag}[as][wrap] > :first-child { flex-wrap: wrap; }
+        ${tag}[column]:not([reverse]), ${tag}[as][column]:not([reverse]) > :first-child { flex-direction: column; }
+        ${tag}[column][reverse], ${tag}[as][column][reverse] > :first-child { flex-direction: column-reverse; }
+        ${tag}[reverse]:not([column]), ${tag}[as][reverse]:not([column]) > :first-child { flex-direction: row-reverse; }
+        ${tag}[reverse][wrap], ${tag}[as][reverse][wrap] > :first-child { flex-wrap: wrap-reverse; }
+        ${tag}[center], ${tag}[as][center] > :first-child { align-items: center; justify-content: center }
+        ${tag}[nowrap], ${tag}[as][nowrap] > :first-child { flex-wrap: nowrap; }
+        ${tag}[wrap], ${tag}[as][wrap] > :first-child { flex-wrap: wrap; }
       `;
 
       const styles = values(Size).map(spaces).concat(common).join("");
@@ -272,10 +281,9 @@ export function StyledMixin<T extends Constructor<HTMLElement>>(
           const tag = this.tagName.toLowerCase();
           const value = this.getAttribute(attr);
           const state = pseudo ? `:${pseudos[pseudo] || pseudo}` : "";
-          const suffix = ghost ? "> :first-child" : "";
           const query = this.as
             ? `${tag}[as][${attr}="${value}"]${state} > :first-child`
-            : `${tag}[${attr}="${value}"]${state} ${suffix}`;
+            : `${tag}[${attr}="${value}"]${state}`;
 
           if (!this.#findRule(query)) {
             const parse = (key: string) => this.#parse(key, value);

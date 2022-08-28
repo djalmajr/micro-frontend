@@ -1,0 +1,5 @@
+.app {
+  background: var(--m-color-blue-50);
+  border: 1px solid var(--m-color-blue-300);
+  padding: var(--m-spacing-medium);
+}

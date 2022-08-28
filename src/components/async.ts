@@ -1,11 +1,10 @@
 import { html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { StyledMixin } from "../mixins/styled.js";
 import styles from "./async.css" assert { type: "css" };
-import "./spinner.js";
+import bootstrap from "../bootstrap.js";
 
 @customElement("m-async")
-export class Async extends StyledMixin(LitElement) {
+export class Async extends LitElement {
   static styles = styles;
 
   @property({ type: String })
@@ -14,17 +13,20 @@ export class Async extends StyledMixin(LitElement) {
   @state()
   loaded = false;
 
-  firstUpdated() {
-    console.log(this.url);
+  connectedCallback() {
+    super.connectedCallback();
+    bootstrap(this.shadowRoot);
+  }
 
+  firstUpdated() {
     import(this.url).then((m) => {
       this.loaded = true;
-      m.default(this.shadowRoot.querySelector(".r00t"));
+      m.default(this.shadowRoot.querySelector(".root"));
     });
   }
 
   render() {
-    return html`<div class="r00t"><m-spinner ?hidden=${this.loaded} /></div>`;
+    return html`<div class="root"><m-spinner ?hidden=${this.loaded} /></div>`;
   }
 }
 

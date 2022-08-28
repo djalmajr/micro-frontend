@@ -1,38 +1,26 @@
-import { html, LitElement, PropertyValues } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { Styled } from "../mixins/styled.js";
+import { BaseElement } from "./base.js";
 import styles from "./spinner.css" assert { type: "css" };
-import { Size } from "../constants.js";
 
-@customElement("m-spinner")
-export class Spinner extends LitElement {
+export class Spinner extends Styled(BaseElement) {
   static styles = styles;
 
-  @property({ type: String })
-  color = "#0f7bc2";
-
-  @property({ type: Boolean })
-  hidden = false;
-
-  @property({ type: String })
-  size?: ValueOf<typeof Size>;
-
-  constructor() {
-    super();
-    this.style.setProperty("--color", this.color);
+  static get observedAttributes() {
+    return ["color", "hidden", "size"];
   }
 
-  updated(props: PropertyValues) {
-    if (props.has("color")) {
+  attributeChangedCallback(key: string, old: string, val: string): void {
+    super.attributeChangedCallback(key, old, val);
+
+    if (key === "color") {
       const color = getComputedStyle(this).getPropertyValue("--color");
 
-      this.style.setProperty("--color", this.color || color);
+      this.style.setProperty("--color", CSS.supports("color", val) ? val : color);
     }
   }
-
-  render() {
-    return html`<div class="spinner" />`;
-  }
 }
+
+customElements.define("m-spinner", Spinner);
 
 declare global {
   interface HTMLElementTagNameMap {

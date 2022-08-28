@@ -1,3 +1,7 @@
 :host {
   display: block;
 }
+
+:host .root {
+  width: 100%;
+}

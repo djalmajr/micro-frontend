@@ -18,7 +18,7 @@
     "serve": "node bin/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "version": "npm run prettier",
-    "watch": "chokidar src/*.ts src/**/*.ts -c 'npm run esbuild {path}'"
+    "watch": "chokidar src/*.{css,ts} src/**/*.{css,ts} -c 'npm run esbuild {path}'"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
