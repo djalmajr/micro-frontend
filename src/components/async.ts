@@ -1,34 +1,55 @@
-import { html, LitElement } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
-import styles from "./async.css" assert { type: "css" };
 import bootstrap from "../bootstrap.js";
+import { Styled } from "../mixins/styled.js";
+import styles from "./async.css" assert { type: "css" };
+import { BaseElement } from "./base.js";
 
-@customElement("m-async")
-export class Async extends LitElement {
+const create = (tag: string, attrs?: object) => {
+  const node = document.createElement(tag);
+  for (const k in attrs) node.setAttribute(k, attrs[k]);
+  return node;
+};
+
+export interface Async {
+  url: string;
+}
+
+export class Async extends Styled(BaseElement) {
   static styles = styles;
 
-  @property({ type: String })
-  url?: string;
+  static shadowDOM = true;
 
-  @state()
-  loaded = false;
+  static get observedAttributes() {
+    return ["url"];
+  }
+
+  properties = {
+    url: { type: String },
+  };
+
+  state = {
+    loaded: false,
+  };
 
   connectedCallback() {
     super.connectedCallback();
-    bootstrap(this.shadowRoot);
+    bootstrap(this.$el);
+    this.#import();
+    this.on("updated", this.#import);
   }
 
-  firstUpdated() {
+  #import = () => {
+    this.$el.firstChild?.remove();
+    this.$el.append(create("m-spinner", { m: "auto" }));
+
     import(this.url).then((m) => {
-      this.loaded = true;
-      m.default(this.shadowRoot.querySelector(".root"));
+      this.$el.firstChild?.remove();
+      this.$el.append(create("div", { class: "root" }));
+      m.default(this.$el.firstChild);
     });
-  }
-
-  render() {
-    return html`<div class="root"><m-spinner ?hidden=${this.loaded} /></div>`;
-  }
+  };
 }
+
+customElements.define("m-async", Async);
 
 declare global {
   interface HTMLElementTagNameMap {

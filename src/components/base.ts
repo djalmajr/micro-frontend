@@ -1,24 +1,40 @@
 import { html, render, type Renderable } from "uhtml";
-import { camelCase } from "../utils/camelCase.js";
 import { handler } from "../utils/createStore.js";
-import { kebabCase } from "../utils/kebabCase.js";
+import { isEqual } from "../utils/isEqual.js";
 import { parseJSON } from "../utils/parseJSON.js";
 import { useSheet } from "../utils/useSheet.js";
 
-const parse = {
-  attr(val: string) {
-    return val === "" || parseJSON(val);
+interface Converter {
+  from(value: string, type: BaseProp["type"]): unknown;
+  to(value: unknown, type: BaseProp["type"]): string;
+}
+
+interface BaseProp {
+  attribute?: boolean;
+  converter?: Converter["from"] | Converter;
+  reflect?: boolean;
+  type?: typeof Array | typeof Boolean | typeof Number | typeof Object | typeof String;
+}
+
+const convert: Converter = {
+  from(value, type) {
+    if (type instanceof Array || type instanceof Object) {
+      return parseJSON(value);
+    }
+
+    // eslint-disable-next-line
+    if (<any>type instanceof Boolean) {
+      return value != null; // Compare null and undefined
+    }
+
+    // eslint-disable-next-line
+    return (<any>type || String)(value);
   },
 
-  prop(val: string) {
-    return typeof val === "boolean" ? (val ? "" : null) : String(val);
+  to(value, type): string {
+    // eslint-disable-next-line
+    return (<any>type)(value);
   },
-};
-
-const options = {
-  characterData: true,
-  childList: true,
-  subtree: true,
 };
 
 export { html, render };
@@ -28,74 +44,109 @@ export class BaseElement extends HTMLElement {
 
   #mounted = false;
   #nextTickId?: number;
-  #unsubscribe?: () => void;
+  #observer?: MutationObserver;
+  #props = {};
+  #unsheet?: () => void;
 
-  #observer = new MutationObserver((arr) => {
-    this.#update(arr.reduce((r, m) => r.concat(...(<Obj>m).addedNodes), []));
-  });
-
-  props = {};
-  state = {};
+  properties?: Obj<BaseProp>;
   slots = {} as Obj<Node[]>;
+  state = {};
 
   constructor() {
     super();
-
     const { shadowDOM, styles } = <Obj>this.constructor;
-
     shadowDOM && this.attachShadow({ mode: "open" });
-    styles && (this.#unsubscribe = useSheet(styles, this.$el));
+    styles && (this.#unsheet = useSheet(styles, this.$el));
   }
 
   connectedCallback() {
     super.connectedCallback?.();
 
-    this.state = new Proxy(this.state, handler(this.#render));
-    this.props = new Proxy(this.props, handler(this.#render));
     this.#mounted = true;
+    this.#props = new Proxy(this.#init(), handler(this.#render));
+    this.state = new Proxy(this.state, handler(this.#render));
 
-    for (const key in this.props) {
-      Object.defineProperty(this, key, {
-        enumerable: true,
-        configurable: true,
-        get: () => this.props[key],
-        set: (value) => {
-          const name = kebabCase(key);
-          const prop = parse.attr(this.attr(name));
-          const { observedAttributes } = <Obj>this.constructor;
-
-          if (observedAttributes?.includes(name) && value !== prop) {
-            this.attr(name, parse.prop(value));
-          }
-
-          this.props[key] = value;
-        },
+    if (!this.shadowRoot) {
+      this.#observer = new MutationObserver((arr) => {
+        this.#update(arr.reduce((r, m) => r.concat(...(<Obj>m).addedNodes), []));
       });
-    }
 
-    this.#observer.observe(this, options);
-    this.#update(Array.from(this.childNodes));
+      this.#observer.observe(this, {
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
+
+      this.#update(Array.from(this.childNodes));
+    }
   }
 
   disconnectedCallback() {
     super.disconnectedCallback?.();
-    this.#observer.disconnect();
-    this.#unsubscribe?.();
+    this.#observer?.disconnect();
+    this.#unsheet?.();
   }
 
   attributeChangedCallback(key: string, old: string | null, val: string | null) {
     super.attributeChangedCallback?.(key, old, val);
 
-    if (!this.#mounted) {
-      queueMicrotask(() => this.attributeChangedCallback(key, old, val));
-      return;
+    !this.#mounted && this.#init();
+
+    for (const prop in this.properties) {
+      const { attribute, converter = convert, type } = this.properties[prop];
+      const attr = typeof attribute === "string" ? attribute : prop.toLowerCase();
+
+      if (attr === key) {
+        const from = this[prop];
+
+        this[prop] =
+          typeof converter === "function"
+            ? converter(val, type)
+            : converter.from(val, type);
+
+        this.emit("updated", { [prop]: from });
+      }
     }
 
-    const prop = camelCase(key);
+    this.#render();
+  }
 
-    if (this.hasOwnProperty(prop)) {
-      this[prop] = parse.attr(val);
+  #init() {
+    const props = {};
+
+    for (const prop in this.properties) {
+      Object.defineProperty(this, prop, {
+        enumerable: true,
+        configurable: true,
+        get: () => this.#props[prop],
+        set: (value) => {
+          const {
+            attribute,
+            converter = convert,
+            reflect,
+            type = String,
+          } = this.properties[prop];
+
+          if (attribute !== false && reflect) {
+            const isFn = typeof converter === "function";
+            const attr = typeof attribute === "string" ? attribute : prop.toLowerCase();
+            const prev = isFn
+              ? converter(this.attr(attr), type)
+              : converter.from(this.attr(attr), type);
+
+            if (!isEqual(value, prev)) {
+              this.attr(attr, isFn ? String(value) : converter.to(value, type));
+            }
+          }
+
+          this.#props[prop] = value;
+        },
+      });
+
+      props[prop] = this[prop] ?? null;
     }
+
+    return props;
   }
 
   // DOM
@@ -129,9 +180,7 @@ export class BaseElement extends HTMLElement {
   // Events
 
   emit(name: string, detail: unknown) {
-    const options = { bubbles: true, composed: true, detail };
-
-    return this.dispatchEvent(new CustomEvent(name, options));
+    return this.dispatchEvent(new CustomEvent(name, { detail }));
   }
 
   on: HTMLElement["addEventListener"] = (name, listener, options) => {
@@ -156,7 +205,7 @@ export class BaseElement extends HTMLElement {
     }
 
     this.#nextTickId = window.requestAnimationFrame(() => {
-      render(this, html.node`${this.render()}`);
+      render(this.$el, this.shadowRoot ? this.render() : html.node`${this.render()}`);
     });
   };
 

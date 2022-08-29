@@ -1,5 +1,5 @@
 import { BaseElement, html } from "./base.js";
-import { Size } from "../constants.js";
+import { Intent, Size } from "../constants.js";
 import { Styled } from "../mixins/styled.js";
 
 const sizes = Object.values(Size);
@@ -112,6 +112,14 @@ const sheet = new CSSStyleSheet();
 
 sheet.replaceSync([css, ...colors.map(color), ...sizes.map(size)].join(" "));
 
+export interface Button {
+  disabled?: boolean;
+  loading?: boolean;
+  intent?: ValueOf<typeof Intent>;
+  size?: ValueOf<typeof Size>;
+  variant?: "ghost" | "outline";
+}
+
 export class Button extends Styled(BaseElement) {
   static styles = sheet;
 
@@ -119,12 +127,12 @@ export class Button extends Styled(BaseElement) {
     return ["disabled", "loading", "intent", "size", "variant"];
   }
 
-  props = {
-    disabled: false,
-    loading: false,
-    intent: null,
-    size: null,
-    variant: null,
+  properties = {
+    disabled: { type: Boolean },
+    loading: { type: Boolean },
+    intent: { type: String },
+    size: { type: String },
+    variant: { type: String },
   };
 
   connectedCallback() {
@@ -140,14 +148,13 @@ export class Button extends Styled(BaseElement) {
   }
 
   handleEvent(evt: MouseEvent) {
-    if (this.props.disabled || this.props.loading) {
+    if (this.disabled || this.loading) {
       evt.stopImmediatePropagation();
     }
   }
 
   render() {
-    const { slots } = this;
-    const { loading } = this.props;
+    const { loading, slots } = this;
     const color = getComputedStyle(this).getPropertyValue("color");
 
     return html`
