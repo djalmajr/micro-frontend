@@ -11,21 +11,11 @@ function App() {
     <m-flex column class="app" color="blue.600">
       <m-flex as="h3" mt="0">React App</m-flex>
       <m-flex align="center" space="medium">
-        <m-button
-          center
-          color="blue"
-          width="10"
-          onClick="${() => setCount((s) => s - 1)}"
-        >
+        <m-button center color="blue" width="10" onClick=${() => setCount((s) => s - 1)}>
           -
         </m-button>
         <m-flex d="inline" center font-size="large">${count}</m-flex>
-        <m-button
-          center
-          color="blue"
-          width="10"
-          onClick="${() => setCount((s) => s + 1)}"
-        >
+        <m-button center color="blue" width="10" onClick=${() => setCount((s) => s + 1)}>
           +
         </m-button>
       </m-flex>

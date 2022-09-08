@@ -36,9 +36,9 @@ export default function (element) {
             Vue App
           </m-flex>
           <m-flex align="center" space="medium">
-            <m-button center color="green" width="10" onClick="${this.dec}">-</m-button>
+            <m-button center color="green" width="10" onClick=${this.dec}>-</m-button>
             <m-flex d="inline" center font-size="large">${this.count}</m-flex>
-            <m-button center color="green" width="10" onClick="${this.inc}">
+            <m-button center color="green" width="10" onClick=${this.inc}>
               ${this.show ? "✕" : "+"}
             </m-button>
           </m-flex>
