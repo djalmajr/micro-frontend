@@ -118,8 +118,8 @@ export function Styled<T extends Constructor<HTMLElement>>(
     }
 
     #observer = new MutationObserver(() => this.#update());
-
     #sheet = [].concat((<Obj>this.constructor).styles)[0] || sheet;
+    #unsheet?: () => void;
 
     get as(): string {
       return this.getAttribute("as") || this.getAttribute("data-as");
@@ -141,7 +141,7 @@ export function Styled<T extends Constructor<HTMLElement>>(
     constructor(...args: any[]) {
       super(...args);
       const { styles } = <Obj>this.constructor;
-      styles && useSheet(styles, document);
+      styles && (this.#unsheet = useSheet(styles, document));
       this.addEventListener("updatesheet", () => this.#update());
     }
 
@@ -155,6 +155,7 @@ export function Styled<T extends Constructor<HTMLElement>>(
     disconnectedCallback() {
       super.disconnectedCallback?.();
       this.#observer.disconnect();
+      this.#unsheet?.();
     }
 
     attributeChangedCallback(key: string, old: string | null, val: string | null): void {
