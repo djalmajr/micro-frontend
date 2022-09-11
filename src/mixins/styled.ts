@@ -101,6 +101,7 @@ export function Styled<T extends Constructor<HTMLElement>>(
     static get observedAttributes() {
       const attrs = [
         "as",
+        "data-as",
         "class",
         "center",
         "column",
@@ -121,7 +122,15 @@ export function Styled<T extends Constructor<HTMLElement>>(
     #sheet = [].concat((<Obj>this.constructor).styles)[0] || sheet;
 
     get as(): string {
-      return this.getAttribute("as");
+      return this.getAttribute("as") || this.getAttribute("data-as");
+    }
+
+    get asAttr(): string {
+      return (
+        (this.hasAttribute("as") && "as") ||
+        (this.hasAttribute("data-as") && "data-as") ||
+        ""
+      );
     }
 
     get attrs() {
@@ -175,7 +184,8 @@ export function Styled<T extends Constructor<HTMLElement>>(
 
       const spaces = (size: string) => /* css */ `
         ${tag}[space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) > *:not([hidden]):not(:first-child),
-        ${tag}[as][space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) > :first-child > *:not([hidden]):not(:first-child) {
+        ${tag}[as][space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}]:not([column]):not([reverse]):not([flex-dir*='column']):not([flex-direction*='column']) > :first-child > *:not([hidden]):not(:first-child) {
           margin-left: calc(var(--${prefix}-spacing-${size}) * calc(1 - 0));
           margin-right: calc(var(--${prefix}-spacing-${size}) * 0);
         }
@@ -184,7 +194,10 @@ export function Styled<T extends Constructor<HTMLElement>>(
         ${tag}[space=${size}][flex-direction='horizontal-reverse'] > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][reverse]:not([column]) > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-dir='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child),
-        ${tag}[as][space=${size}][flex-direction='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child) {
+        ${tag}[as][space=${size}][flex-direction='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][reverse]:not([column]) > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][flex-dir='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][flex-direction='horizontal-reverse'] > :first-child > *:not([hidden]):not(:first-child) {
           margin-left: calc(var(--${prefix}-spacing-${size}) * calc(1 - 1));
           margin-right: calc(var(--${prefix}-spacing-${size}) * 1);
         }
@@ -193,7 +206,10 @@ export function Styled<T extends Constructor<HTMLElement>>(
         ${tag}[space=${size}][flex-direction='column'] > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][column]:not([reverse]) > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-dir='column'] > :first-child > *:not([hidden]):not(:first-child),
-        ${tag}[as][space=${size}][flex-direction='column'] > :first-child > *:not([hidden]):not(:first-child) {
+        ${tag}[as][space=${size}][flex-direction='column'] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][column]:not([reverse]) > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][flex-dir='column'] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][flex-direction='column'] > :first-child > *:not([hidden]):not(:first-child) {
           margin-top: calc(var(--${prefix}-spacing-${size}) * calc(1 - 0));
           margin-bottom: calc(var(--${prefix}-spacing-${size}) * 0);
         }
@@ -202,7 +218,10 @@ export function Styled<T extends Constructor<HTMLElement>>(
         ${tag}[space=${size}][flex-direction='column-reverse'] > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][column][reverse] > :first-child > *:not([hidden]):not(:first-child),
         ${tag}[as][space=${size}][flex-dir='column-reverse'] > :first-child > *:not([hidden]):not(:first-child),
-        ${tag}[as][space=${size}][flex-direction='column-reverse'] > :first-child > *:not([hidden]):not(:first-child) {
+        ${tag}[as][space=${size}][flex-direction='column-reverse'] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][column][reverse] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][flex-dir='column-reverse'] > :first-child > *:not([hidden]):not(:first-child),
+        ${tag}[data-as][space=${size}][flex-direction='column-reverse'] > :first-child > *:not([hidden]):not(:first-child) {
           margin-top: calc(var(--${prefix}-spacing-${size}) * calc(1 - 1));
           margin-bottom: calc(var(--${prefix}-spacing-${size}) * 1);
         }
@@ -210,16 +229,16 @@ export function Styled<T extends Constructor<HTMLElement>>(
 
       const common = /* css */ `
         ${tag} { display: flex; }
-        ${tag}[as] { display: flow-root; }
-        ${tag}[as] > :first-child { display: flex; }
+        ${tag}[as], ${tag}[data-as] { display: flow-root; }
+        ${tag}[as] > :first-child, ${tag}[data-as] > :first-child { display: flex; }
         ${tag}[hidden] { display: none; }
-        ${tag}[column]:not([reverse]), ${tag}[as][column]:not([reverse]) > :first-child { flex-direction: column; }
-        ${tag}[column][reverse], ${tag}[as][column][reverse] > :first-child { flex-direction: column-reverse; }
-        ${tag}[reverse]:not([column]), ${tag}[as][reverse]:not([column]) > :first-child { flex-direction: row-reverse; }
-        ${tag}[reverse][wrap], ${tag}[as][reverse][wrap] > :first-child { flex-wrap: wrap-reverse; }
-        ${tag}[center], ${tag}[as][center] > :first-child { align-items: center; justify-content: center }
-        ${tag}[nowrap], ${tag}[as][nowrap] > :first-child { flex-wrap: nowrap; }
-        ${tag}[wrap], ${tag}[as][wrap] > :first-child { flex-wrap: wrap; }
+        ${tag}[column]:not([reverse]), ${tag}[as][column]:not([reverse]) > :first-child, ${tag}[data-as][column]:not([reverse]) > :first-child { flex-direction: column; }
+        ${tag}[column][reverse], ${tag}[as][column][reverse] > :first-child, ${tag}[data-as][column][reverse] > :first-child { flex-direction: column-reverse; }
+        ${tag}[reverse]:not([column]), ${tag}[as][reverse]:not([column]) > :first-child, ${tag}[data-as][reverse]:not([column]) > :first-child { flex-direction: row-reverse; }
+        ${tag}[reverse][wrap], ${tag}[as][reverse][wrap] > :first-child, ${tag}[data-as][reverse][wrap] > :first-child { flex-wrap: wrap-reverse; }
+        ${tag}[center], ${tag}[as][center] > :first-child, ${tag}[data-as][center] > :first-child { align-items: center; justify-content: center }
+        ${tag}[nowrap], ${tag}[as][nowrap] > :first-child, ${tag}[data-as][nowrap] > :first-child { flex-wrap: nowrap; }
+        ${tag}[wrap], ${tag}[as][wrap] > :first-child, ${tag}[data-as][wrap] > :first-child { flex-wrap: wrap; }
       `;
 
       const styles = values(Size).map(spaces).concat(common).join("");
@@ -281,8 +300,8 @@ export function Styled<T extends Constructor<HTMLElement>>(
           const tag = this.tagName.toLowerCase();
           const value = this.getAttribute(attr);
           const state = pseudo ? `:${pseudos[pseudo] || pseudo}` : "";
-          const query = this.as
-            ? `${tag}[as][${attr}="${value}"]${state} > :first-child`
+          const query = this.asAttr
+            ? `${tag}[${this.asAttr}][${attr}="${value}"]${state} > :first-child`
             : `${tag}[${attr}="${value}"]${state}`;
 
           if (!this.#findRule(query)) {

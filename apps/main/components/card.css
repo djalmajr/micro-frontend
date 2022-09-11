@@ -1,0 +1,24 @@
+m-card {
+  border: 1px solid #ddd;
+  flex-direction: column;
+}
+
+m-card header {
+  border-bottom: 1px solid #ddd;
+  text-transform: uppercase;
+}
+
+m-card header:empty,
+m-card footer:empty {
+  display: none;
+}
+
+m-card header,
+m-card footer,
+m-card main {
+  padding: 0.5rem;
+}
+
+m-card footer {
+  border-top: 1px solid #ddd;
+}

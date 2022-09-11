@@ -2,6 +2,7 @@ import { html, render, type Renderable } from "uhtml";
 import { handler } from "../utils/createStore.js";
 import { isEqual } from "../utils/isEqual.js";
 import { parseJSON } from "../utils/parseJSON.js";
+import { typeOf } from "../utils/typeOf.js";
 import { useSheet } from "../utils/useSheet.js";
 
 interface Converter {
@@ -13,27 +14,26 @@ interface BaseProp {
   attribute?: boolean;
   converter?: Converter["from"] | Converter;
   reflect?: boolean;
-  type?: typeof Array | typeof Boolean | typeof Number | typeof Object | typeof String;
+  type?: Constructor;
 }
 
 const convert: Converter = {
-  from(value, type) {
-    if (type instanceof Array || type instanceof Object) {
+  from(value, Ctor: BaseProp["type"] = String) {
+    const type = typeOf(new Ctor());
+
+    if (["array", "object"].includes(type)) {
       return parseJSON(value);
     }
 
-    // eslint-disable-next-line
-    if (<any>type instanceof Boolean) {
-      return value != null; // Compare null and undefined
+    if (type === "boolean") {
+      return value != null;
     }
 
-    // eslint-disable-next-line
-    return (<any>type || String)(value);
+    return new Ctor(value);
   },
 
-  to(value, type): string {
-    // eslint-disable-next-line
-    return (<any>type)(value);
+  to(value, Ctor: BaseProp["type"] = String): string {
+    return new Ctor(value) as string;
   },
 };
 
@@ -63,21 +63,20 @@ export class BaseElement extends HTMLElement {
     super.connectedCallback?.();
 
     this.#mounted = true;
-    this.#props = new Proxy(this.#init(), handler(this.#render));
-    this.state = new Proxy(this.state, handler(this.#render));
+    this.#props = new Proxy(this.#init(), handler(this.forceUpdate));
+    this.state = new Proxy(this.state, handler(this.forceUpdate));
 
     if (!this.shadowRoot) {
-      this.#observer = new MutationObserver((arr) => {
-        this.#update(arr.reduce((r, m) => r.concat(...(<Obj>m).addedNodes), []));
-      });
-
-      this.#observer.observe(this, {
-        characterData: true,
-        childList: true,
-        subtree: true,
-      });
-
+      this.#observer = new MutationObserver(this.#onChange);
+      this.#observer.observe(this, { characterData: true, childList: true });
       this.#update(Array.from(this.childNodes));
+      Object.defineProperty(this, "textContent", {
+        set: (value) => {
+          const frag = document.createDocumentFragment();
+          frag.replaceChildren(document.createTextNode(value));
+          this.#update(Array.from(frag.childNodes));
+        },
+      });
     }
   }
 
@@ -104,11 +103,11 @@ export class BaseElement extends HTMLElement {
             ? converter(val, type)
             : converter.from(val, type);
 
-        this.emit("updated", { [prop]: from });
+        this.emit("update", { [prop]: from });
       }
     }
 
-    this.#render();
+    this.forceUpdate();
   }
 
   #init() {
@@ -197,22 +196,26 @@ export class BaseElement extends HTMLElement {
     return null;
   }
 
-  #render = () => {
-    if (!this.isConnected || !this.render?.()) return;
+  forceUpdate = () => {
+    if (!this.isConnected) return;
 
     if (this.#nextTickId) {
       window.cancelAnimationFrame(this.#nextTickId);
     }
 
     this.#nextTickId = window.requestAnimationFrame(() => {
-      render(this.$el, this.shadowRoot ? this.render() : html.node`${this.render()}`);
+      render(this.$el, this.render());
     });
+  };
+
+  #onChange = (arr: MutationRecord[]) => {
+    this.#update(arr.reduce((r, m) => r.concat(...(<Obj>m).addedNodes), []));
   };
 
   #update(nodes: Node[]) {
     if (nodes.length) {
-      for (const name in this.slots) {
-        for (const node of this.slots[name]) {
+      if (Object.keys(this.slots).length) {
+        for (const node of nodes) {
           if (this.contains(node)) return;
         }
       }
@@ -224,7 +227,7 @@ export class BaseElement extends HTMLElement {
         return res;
       }, {});
 
-      this.#render();
+      this.forceUpdate();
     }
   }
 }

@@ -1,6 +1,8 @@
-import { BaseElement, html } from "./base.js";
 import { Intent, Size } from "../constants.js";
 import { Styled } from "../mixins/styled.js";
+import { BaseElement, html } from "./base.js";
+import "./flex.js";
+import "./spinner.js";
 
 const sizes = Object.values(Size);
 

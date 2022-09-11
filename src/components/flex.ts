@@ -17,6 +17,7 @@ export class Flex extends Styled(HTMLElement) {
 
     switch (key) {
       case "as":
+      case "data-as":
         queueMicrotask(() => this.#update());
         break;
     }

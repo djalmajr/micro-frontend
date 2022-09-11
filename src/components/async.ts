@@ -1,13 +1,7 @@
-import bootstrap from "../bootstrap.js";
 import { Styled } from "../mixins/styled.js";
+import { createNode } from "../utils/createNode.js";
 import styles from "./async.css" assert { type: "css" };
 import { BaseElement } from "./base.js";
-
-const create = (tag: string, attrs?: object) => {
-  const node = document.createElement(tag);
-  for (const k in attrs) node.setAttribute(k, attrs[k]);
-  return node;
-};
 
 export interface Async {
   url: string;
@@ -32,21 +26,18 @@ export class Async extends Styled(BaseElement) {
 
   connectedCallback() {
     super.connectedCallback();
-    bootstrap(this.$el);
     this.#import();
-    this.on("updated", this.#import);
+    this.on("update", this.#import);
   }
 
-  #import = () => {
-    this.$el.firstChild?.remove();
-    this.$el.append(create("m-spinner", { m: "auto" }));
+  #import() {
+    this.$el.replaceChildren(createNode("m-spinner", { m: "auto" }));
 
     import(this.url).then((m) => {
-      this.$el.firstChild?.remove();
-      this.$el.append(create("div", { class: "root" }));
+      this.$el.replaceChildren(createNode("div", { class: "root" }));
       m.default(this.$el.firstChild);
     });
-  };
+  }
 }
 
 customElements.define("m-async", Async);
